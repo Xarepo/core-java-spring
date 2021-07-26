@@ -9,7 +9,7 @@ import eu.arrowhead.common.CoreDefaults;
 import eu.arrowhead.common.CoreCommonConstants;
 import eu.arrowhead.common.CoreUtilities;
 import eu.arrowhead.common.Utilities;
-import eu.arrowhead.common.SslUtil;
+//import eu.arrowhead.common.SslUtil;
 import eu.arrowhead.common.exception.ArrowheadException;
 import eu.arrowhead.common.core.CoreSystemService;
 import eu.arrowhead.common.dto.internal.ServiceDefinitionRequestDTO;
@@ -168,7 +168,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
 
         SSLSocketFactory socketFactory = null;
         try {
-            socketFactory = SslUtil.getSslSocketFactory(mqttBrokerCAFile, mqttBrokerCertFile, mqttBrokerKeyFile, "");
+            //socketFactory = SslUtil.getSslSocketFactory(mqttBrokerCAFile, mqttBrokerCertFile, mqttBrokerKeyFile, "");
         } catch (Exception e) {
             logger.info("Could not open certificates: " + e.toString());
         }
@@ -344,8 +344,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
         }
 
         try {
-          ServiceQueryFormDTO serviceQueryFormDTO = mapper.convertValue(request.getPayload(),
-              ServiceQueryFormDTO.class);
+            ServiceQueryFormDTO serviceQueryFormDTO = mapper.convertValue(request.getPayload(), ServiceQueryFormDTO.class);
 
           if (Utilities.isEmpty(serviceQueryFormDTO.getServiceDefinitionRequirement())) {
             throw new Exception("Service definition requirement is null or blank");
@@ -359,12 +358,11 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
           client.publish(request.getReplyTo(), resp);
           return;
         } catch (Exception e) {
-
         }
 
         break;
       default:
-        logger.info("Received message to unsupported topic");
+        logger.info("Received message on unsupported topic");
     }
 
     try {
