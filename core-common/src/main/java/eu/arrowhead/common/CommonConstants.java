@@ -291,7 +291,9 @@ public class CommonConstants {
 	
 	public static final List<CoreSystemService> PUBLIC_CORE_SYSTEM_SERVICES = List.of(CoreSystemService.ORCHESTRATION_SERVICE, CoreSystemService.AUTH_PUBLIC_KEY_SERVICE,
   			  																		  CoreSystemService.EVENT_PUBLISH_SERVICE, CoreSystemService.EVENT_SUBSCRIBE_SERVICE, CoreSystemService.EVENT_UNSUBSCRIBE_SERVICE, 
-																					  CoreSystemService.PROXY_SERVICE, CoreSystemService.TIME_SERVICE, CoreSystemService.HISTORIAN_SERVICE, CoreSystemService.CHOREOGRAPHER_SERVICE, CoreSystemService.TRANSLATOR_SERVICE);
+																					  CoreSystemService.PROXY_SERVICE, CoreSystemService.TIME_SERVICE, CoreSystemService.HISTORIAN_SERVICE, CoreSystemService.CHOREOGRAPHER_SERVICE, CoreSystemService.TRANSLATOR_SERVICE,
+	       																			  CoreSystemService.CONFIGURATION_SERVICE, CoreSystemService.CONFIGURATION_RAW_SERVICE);
+
 	
 	public static final String HTTP_CLIENT_CONNECTION_TIMEOUT = "http.client.connection.timeout";
 	public static final String $HTTP_CLIENT_CONNECTION_TIMEOUT_WD = "${" + HTTP_CLIENT_CONNECTION_TIMEOUT + ":" + Defaults.DEFAULT_CONNECTION_TIMEOUT + "}";
@@ -305,6 +307,8 @@ public class CommonConstants {
 	
 	public static final String SERVER_SSL_ENABLED = "server.ssl.enabled";
 	public static final String $SERVER_SSL_ENABLED_WD = "${" + SERVER_SSL_ENABLED + ":" + Defaults.DEFAULT_SSL_SERVER_ENABLED + "}";
+	public static final String WEBSOCKETS_ENABLED = "websockets.enabled";
+	public static final String $WEBSOCKETS_ENABLED_WD = "${" + WEBSOCKETS_ENABLED + ":" + Defaults.DEFAULT_WEBSOCKETS_ENABLED + "}";
 	public static final String KEYSTORE_TYPE = "server.ssl.key-store-type";
 	public static final String $KEYSTORE_TYPE = "${" + KEYSTORE_TYPE + "}";
 	public static final String KEYSTORE_PATH = "server.ssl.key-store";
