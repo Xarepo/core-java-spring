@@ -83,26 +83,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
   @Value(CoreCommonConstants.$MQTT_BROKER_KEYFILE)
   private String mqttBrokerKeyFile;
 
-  @Value(CommonConstants.$SERVER_SSL_ENABLED_WD)
-  private boolean serverSslEnabled;
-
-  @Value(CommonConstants.$KEYSTORE_TYPE)
-  private String keyStoreType;
-
-  @Value(CommonConstants.$KEYSTORE_PATH)
-  private String keyStorePath;
-
-  @Value(CommonConstants.$KEYSTORE_PASSWORD)
-  private String keyStorePassword;
-
-  @Value(CommonConstants.$KEY_PASSWORD)
-  private String keyPassword;
-
-  @Value(CommonConstants.$TRUSTSTORE_PATH)
-  private String trustStorePath;
-
-  @Value(CommonConstants.$TRUSTSTORE_PASSWORD)
-  private String trustStorePassword;
+  final int BROKER_CHECK_INTERVAL = 120;
 
   final String DIRECTION_KEY = "direction";
   final String DIRECTION_DEFAULT = CoreDefaults.DEFAULT_REQUEST_PARAM_DIRECTION_VALUE;
@@ -136,15 +117,15 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
     if (mqttBrokerEnabled) {
       logger.info("Starting MQTT protocol");
 
-      if(Utilities.isEmpty(mqttBrokerUsername) || Utilities.isEmpty(mqttBrokerPassword)) {
+      /*if(Utilities.isEmpty(mqttBrokerUsername) || Utilities.isEmpty(mqttBrokerPassword)) { // now allowing anon logins
         logger.info("Missing MQTT broker username or password!");
         System.exit(-1);
-      }
+      }*/
 
-      if(Utilities.isEmpty(mqttBrokerCAFile) || Utilities.isEmpty(mqttBrokerCertFile) || Utilities.isEmpty(mqttBrokerKeyFile)) {
+      /*if(Utilities.isEmpty(mqttBrokerCAFile) || Utilities.isEmpty(mqttBrokerCertFile) || Utilities.isEmpty(mqttBrokerKeyFile)) { // now allowing non-encrypted traffic
         logger.info("Missing MQTT broker certificate/key files!");
         System.exit(-1);
-      }
+      }*/
 
       t = new Thread(this);
       t.start();
@@ -159,10 +140,13 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
 
     try {
       MqttConnectOptions connOpts = new MqttConnectOptions();
-      connOpts.setCleanSession(true);
-      connOpts.setUserName(mqttBrokerUsername);
-			connOpts.setPassword(mqttBrokerPassword.toCharArray());
+      
+      if(!Utilities.isEmpty(mqttBrokerUsername) && !Utilities.isEmpty(mqttBrokerPassword)) {
+        connOpts.setUserName(mqttBrokerUsername);
+        connOpts.setPassword(mqttBrokerPassword.toCharArray());
+      }
 
+      connOpts.setCleanSession(true);
       connOpts.setConnectionTimeout(20);
 			connOpts.setKeepAliveInterval(20);
 
@@ -201,10 +185,12 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
             client = new MqttClient("tcp://" + mqttBrokerAddress + ":" + mqttBrokerPort, mqttSystemName, persistence);
           }
         }
+
         if (!client.isConnected()) {
           connectBroker();
         }
-        Thread.sleep(1000 * 120);
+
+        Thread.sleep(1000 * BROKER_CHECK_INTERVAL);
       } catch (InterruptedException iex) {
         logger.info("Error starting MQTT timeout thread");
       } catch (MqttException mex) {
@@ -237,7 +223,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
       return;
     }
 
-    logger.info(message.toString());
+    //logger.info(message.toString());
 
     switch (topic) {
       case ECHO_TOPIC:
@@ -298,7 +284,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
             throw new Exception("Security type is in conflict with the availability of the authentication info.");
           }
 
-          logger.info("SRREQ:: " + serviceRegistryRequestDTO.toString());
+          //logger.info("SRREQ:: " + serviceRegistryRequestDTO.toString());
           response = new MqttResponseDTO("200", "application/json", null);
           response.setPayload(serviceRegistryDBService.registerServiceResponse(serviceRegistryRequestDTO));
           MqttMessage resp = new MqttMessage(mapper.writeValueAsString(response).getBytes());
@@ -312,7 +298,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
         }
         break;
       case UNREGISTER_TOPIC:
-        logger.info("unregister(): " + message.toString());
+        //logger.info("unregister(): " + message.toString());
         if (!request.getMethod().equalsIgnoreCase("delete")) {
           return;
         }
@@ -338,7 +324,12 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
           if (providerPort < CommonConstants.SYSTEM_PORT_RANGE_MIN || providerPort > CommonConstants.SYSTEM_PORT_RANGE_MAX) {
             throw new Exception("Port must be between " + CommonConstants.SYSTEM_PORT_RANGE_MIN + " and " + CommonConstants.SYSTEM_PORT_RANGE_MAX + ".");
           }
+
           serviceRegistryDBService.removeServiceRegistry(serviceDefinition, providerName, providerAddress, providerPort);
+          response = new MqttResponseDTO("200", null, null);
+          MqttMessage resp = new MqttMessage(mapper.writeValueAsString(response).getBytes());
+          resp.setQos(2);
+          client.publish(request.getReplyTo(), resp);
 
           return;
         } catch (Exception e) {
@@ -347,7 +338,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
 
         break;
       case QUERY_TOPIC:
-        logger.info("query(): " + message.toString());
+        //logger.info("query(): " + message.toString());
         if (!request.getMethod().toLowerCase().equals("post")) {
           return;
         }
