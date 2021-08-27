@@ -132,7 +132,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
   // -------------------------------------------------------------------------------------------------
   @PostConstruct
   public void init() {
-    
+
     if (mqttBrokerEnabled) {
       logger.info("Starting MQTT protocol");
 
@@ -141,11 +141,11 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
         System.exit(-1);
       }
 
-      /*if(Utilities.isEmpty(mqttBrokerCAFile) || Utilities.isEmpty(mqttBrokerCertFile) || Utilities.isEmpty(mqttBrokerKeyFile)) {
+      if(Utilities.isEmpty(mqttBrokerCAFile) || Utilities.isEmpty(mqttBrokerCertFile) || Utilities.isEmpty(mqttBrokerKeyFile)) {
         logger.info("Missing MQTT broker certificate/key files!");
         System.exit(-1);
-      }*/
-      
+      }
+
       t = new Thread(this);
       t.start();
     }
@@ -160,13 +160,13 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
     try {
       MqttConnectOptions connOpts = new MqttConnectOptions();
       connOpts.setCleanSession(true);
-      //connOpts.setUserName(mqttBrokerUsername);
-			//connOpts.setPassword(mqttBrokerPassword.toCharArray());
+      connOpts.setUserName(mqttBrokerUsername);
+			connOpts.setPassword(mqttBrokerPassword.toCharArray());
 
       connOpts.setConnectionTimeout(20);
 			connOpts.setKeepAliveInterval(20);
 
-      /*if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
+      if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
         connOpts.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1);
         SSLSocketFactory socketFactory = null;
         try {
@@ -174,9 +174,9 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
         } catch (Exception e) {
           logger.info("Could not open certificates: " + e.toString());
         }
-			  connOpts.setSocketFactory(socketFactory);
-      }*/
-      
+        connOpts.setSocketFactory(socketFactory);
+      }
+
       client.setCallback(this);
       client.connect(connOpts);
 
@@ -210,9 +210,9 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
       } catch (MqttException mex) {
         logger.info("MQTT error: " + mex.toString());
       }
-      
+
     }
-    
+
   }
 
   @Override
