@@ -122,12 +122,12 @@ public class MqttServiceRegistry implements MqttCallback {
     if (mqttBrokerEnabled) {
       logger.info("Starting MQTT protocol");
 
-      if(Utilities.isEmpty(mqttBrokerUsername) || Utilities.isEmpty(mqttBrokerPassword)) { // should we allow anonymoues logins?
+      if(Utilities.isEmpty(mqttBrokerUsername) || Utilities.isEmpty(mqttBrokerPassword)) { // should we allow anonymous logins?
         logger.info("Missing MQTT broker username or password!");
         //System.exit(-1);
       }
 
-      if(Utilities.isEmpty(mqttBrokerCAFile) || Utilities.isEmpty(mqttBrokerCertFile) || Utilities.isEmpty(mqttBrokerKeyFile)) { // should we allowi non-encrypted traffic?
+      if(Utilities.isEmpty(mqttBrokerCAFile) || Utilities.isEmpty(mqttBrokerCertFile) || Utilities.isEmpty(mqttBrokerKeyFile)) { // should we allow non-encrypted traffic?
         logger.info("Missing MQTT broker certificate/key files!");
         //System.exit(-1);
       }
@@ -209,7 +209,7 @@ public class MqttServiceRegistry implements MqttCallback {
     MqttResponseDTO response = null;
     ObjectMapper mapper = new ObjectMapper();
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    
+
     try {
       request = Utilities.fromJson(message.toString(), MqttRequestDTO.class);
       
