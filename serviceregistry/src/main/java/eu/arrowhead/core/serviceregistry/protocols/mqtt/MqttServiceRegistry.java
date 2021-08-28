@@ -32,6 +32,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Component;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -44,7 +46,8 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 
 @Component
-public class MqttServiceRegistry implements MqttCallback, Runnable {
+@EnableScheduling
+public class MqttServiceRegistry implements MqttCallback {
 
   // =================================================================================================
   // members
@@ -83,7 +86,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
   @Value(CoreCommonConstants.$MQTT_BROKER_KEYFILE)
   private String mqttBrokerKeyFile;
 
-  final int BROKER_CHECK_INTERVAL = 120;
+  //final int BROKER_CHECK_INTERVAL = 120;
 
   final String DIRECTION_KEY = "direction";
   final String DIRECTION_DEFAULT = CoreDefaults.DEFAULT_REQUEST_PARAM_DIRECTION_VALUE;
@@ -106,7 +109,9 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
   final String UNREGISTER_TOPIC = "ah/serviceregistry/unregister";
   final String QUERY_TOPIC = "ah/serviceregistry/query";
 
-  Thread t = null;
+  final String GET_METHOD = "get";
+  final String POST_METHOD = "post";
+  final String DELETE_METHOD = "delete";
 
   // =================================================================================================
   // methods
@@ -117,18 +122,16 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
     if (mqttBrokerEnabled) {
       logger.info("Starting MQTT protocol");
 
-      /*if(Utilities.isEmpty(mqttBrokerUsername) || Utilities.isEmpty(mqttBrokerPassword)) { // now allowing anon logins
+      if(Utilities.isEmpty(mqttBrokerUsername) || Utilities.isEmpty(mqttBrokerPassword)) { // should we allow anonymoues logins?
         logger.info("Missing MQTT broker username or password!");
-        System.exit(-1);
-      }*/
+        //System.exit(-1);
+      }
 
-      /*if(Utilities.isEmpty(mqttBrokerCAFile) || Utilities.isEmpty(mqttBrokerCertFile) || Utilities.isEmpty(mqttBrokerKeyFile)) { // now allowing non-encrypted traffic
+      if(Utilities.isEmpty(mqttBrokerCAFile) || Utilities.isEmpty(mqttBrokerCertFile) || Utilities.isEmpty(mqttBrokerKeyFile)) { // should we allowi non-encrypted traffic?
         logger.info("Missing MQTT broker certificate/key files!");
-        System.exit(-1);
-      }*/
+        //System.exit(-1);
+      }
 
-      t = new Thread(this);
-      t.start();
     }
   }
 
@@ -156,7 +159,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
         try {
           socketFactory = SslUtil.getSslSocketFactory(mqttBrokerCAFile, mqttBrokerCertFile, mqttBrokerKeyFile, "");
         } catch (Exception e) {
-          logger.info("Could not open certificates: " + e.toString());
+          logger.info("Could not load certificate file(s): " + e.toString());
         }
         connOpts.setSocketFactory(socketFactory);
       }
@@ -172,33 +175,26 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
 
   }
 
-  @Override
-  public void run() {
+  @Scheduled(fixedDelay=1000*60, initialDelay = 1000*5)
+  public void manageBroker() {
 
-    while (true) {
-      try {
-        if (client == null) {
-          persistence = new MemoryPersistence();
-          if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
-            client = new MqttClient("ssl://" + mqttBrokerAddress + ":" + mqttBrokerPort, mqttSystemName, persistence);
-          } else {
-            client = new MqttClient("tcp://" + mqttBrokerAddress + ":" + mqttBrokerPort, mqttSystemName, persistence);
-          }
+    try {
+      if (client == null) {
+        persistence = new MemoryPersistence();
+        if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
+          client = new MqttClient(CommonConstants.PROTOCOL_SSL + mqttBrokerAddress + ":" + mqttBrokerPort, mqttSystemName, persistence);
+        } else {
+          client = new MqttClient(CommonConstants.PROTOCOL_TCP + mqttBrokerAddress + ":" + mqttBrokerPort, mqttSystemName, persistence);
         }
-
-        if (!client.isConnected()) {
-          connectBroker();
-        }
-
-        Thread.sleep(1000 * BROKER_CHECK_INTERVAL);
-      } catch (InterruptedException iex) {
-        logger.info("Error starting MQTT timeout thread");
-      } catch (MqttException mex) {
-        logger.info("MQTT error: " + mex.toString());
       }
 
-    }
+      if (!client.isConnected()) {
+        connectBroker();
+      }
 
+    } catch (MqttException mex) {
+      logger.info("MQTT error: " + mex.toString());
+    }
   }
 
   @Override
@@ -211,29 +207,27 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
   public void messageArrived(String topic, MqttMessage message) {
     MqttRequestDTO request = null;
     MqttResponseDTO response = null;
-    ObjectMapper mapper;
-
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    
     try {
       request = Utilities.fromJson(message.toString(), MqttRequestDTO.class);
-      mapper = new ObjectMapper();
-      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-      //request = mapper.readValue(message.toString(), MqttRequestDTO.class);
+      
     } catch (Exception ae) {
       logger.info("Could not convert MQTT message to REST request!");
       return;
     }
 
     //logger.info(message.toString());
-
     switch (topic) {
       case ECHO_TOPIC:
-        logger.info(request.getMethod() + " echo(): " + new String(message.getPayload(), StandardCharsets.UTF_8));
-        if (!request.getMethod().toLowerCase().equals("get")) {
+        //logger.info(request.getMethod() + " echo(): " + new String(message.getPayload(), StandardCharsets.UTF_8));
+        if (!request.getMethod().toLowerCase().equals(GET_METHOD)) {
           return;
         }
         try {
           response = new MqttResponseDTO("200", "text/plain", "Got it");
-          MqttMessage resp = new MqttMessage(Utilities.toJson(response).getBytes());
+          final MqttMessage resp = new MqttMessage(Utilities.toJson(response).getBytes());
           resp.setQos(2);
           client.publish(request.getReplyTo(), resp);
           return;
@@ -244,8 +238,8 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
       case REGISTER_TOPIC:
 
         try {
-          logger.info("register(): " + new String(message.getPayload(), StandardCharsets.UTF_8));
-          if (!request.getMethod().toLowerCase().equals("post")) {
+          //logger.info("register(): " + new String(message.getPayload(), StandardCharsets.UTF_8));
+          if (!request.getMethod().toLowerCase().equals(POST_METHOD)) {
             return;
           }
 
@@ -287,7 +281,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
           //logger.info("SRREQ:: " + serviceRegistryRequestDTO.toString());
           response = new MqttResponseDTO("200", "application/json", null);
           response.setPayload(serviceRegistryDBService.registerServiceResponse(serviceRegistryRequestDTO));
-          MqttMessage resp = new MqttMessage(mapper.writeValueAsString(response).getBytes());
+          final MqttMessage resp = new MqttMessage(mapper.writeValueAsString(response).getBytes());
           resp.setQos(2);
           client.publish(request.getReplyTo(), resp);
           return;
@@ -299,7 +293,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
         break;
       case UNREGISTER_TOPIC:
         //logger.info("unregister(): " + message.toString());
-        if (!request.getMethod().equalsIgnoreCase("delete")) {
+        if (!request.getMethod().equalsIgnoreCase(DELETE_METHOD)) {
           return;
         }
 
@@ -344,17 +338,14 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
         }
 
         try {
-          ServiceQueryFormDTO serviceQueryFormDTO = mapper.convertValue(request.getPayload(),
-              ServiceQueryFormDTO.class);
-
+          ServiceQueryFormDTO serviceQueryFormDTO = mapper.convertValue(request.getPayload(), ServiceQueryFormDTO.class);
           if (Utilities.isEmpty(serviceQueryFormDTO.getServiceDefinitionRequirement())) {
             throw new Exception("Service definition requirement is null or blank");
           }
 
-          //logger.info("SRQUERY:: " + serviceQueryFormDTO.toString());
           response = new MqttResponseDTO("200", "application/json", null);
           response.setPayload(serviceRegistryDBService.queryRegistry(serviceQueryFormDTO));
-          MqttMessage resp = new MqttMessage(mapper.writeValueAsString(response).getBytes());
+          final MqttMessage resp = new MqttMessage(mapper.writeValueAsString(response).getBytes());
           resp.setQos(2);
           client.publish(request.getReplyTo(), resp);
           return;
@@ -369,8 +360,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
 
     try {
       MqttResponseDTO srResponse = new MqttResponseDTO("400", null, null);
-      final String respJson = mapper.writeValueAsString(srResponse);
-      MqttMessage resp = new MqttMessage(respJson.getBytes());
+      final MqttMessage resp = new MqttMessage(mapper.writeValueAsString(srResponse).getBytes());
       resp.setQos(2);
       client.publish(request.getReplyTo(), resp);
     } catch (Exception me) {
@@ -380,7 +370,6 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
 
   @Override
   public void deliveryComplete(IMqttDeliveryToken token) {
-
   }
 
 }
