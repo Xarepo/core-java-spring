@@ -25,14 +25,14 @@ public class MqttRequestDTO implements Serializable {
 
 	//-------------------------------------------------------------------------------------------------
 	public MqttRequestDTO(final String method, Map<String, String> queryParameters, final String replyTo, final Object payload) {
-        	this.method  = method;
-       		this.queryParameters = queryParameters;
-        	this.replyTo  = replyTo;
+        this.method  = method;
+        this.queryParameters = queryParameters;
+        this.replyTo  = replyTo;
 		this.payload = payload;
 	}
 
 	//-------------------------------------------------------------------------------------------------
-	public String getMethod() { return method; }
+	public String getMethod() {	return method; }
 	public Map<String, String> getQueryParameters() { return queryParameters; }
 	public String getReplyTo() { return replyTo; }
 	public Object getPayload() { return payload; }

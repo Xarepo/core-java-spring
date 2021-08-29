@@ -23,8 +23,8 @@ public class MqttResponseDTO implements Serializable {
 
 	//-------------------------------------------------------------------------------------------------
 	public MqttResponseDTO(final String code, final String contentType, final Object payload) {
-	        this.code  = code;
-        	this.contentType  = contentType;
+        this.code  = code;
+        this.contentType  = contentType;
 		this.payload = payload;
 	}
 

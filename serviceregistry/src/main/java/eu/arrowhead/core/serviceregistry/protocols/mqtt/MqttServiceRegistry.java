@@ -9,7 +9,11 @@ import eu.arrowhead.common.CoreDefaults;
 import eu.arrowhead.common.CoreCommonConstants;
 import eu.arrowhead.common.CoreUtilities;
 import eu.arrowhead.common.Utilities;
+<<<<<<< HEAD
 //import eu.arrowhead.common.SslUtil;
+=======
+import eu.arrowhead.common.SslUtil;
+>>>>>>> aced3f499fe35165d157d22522a359f7d31dd9a9
 import eu.arrowhead.common.exception.ArrowheadException;
 import eu.arrowhead.common.core.CoreSystemService;
 import eu.arrowhead.common.dto.internal.ServiceDefinitionRequestDTO;
@@ -32,6 +36,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Component;
+<<<<<<< HEAD
+=======
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+>>>>>>> aced3f499fe35165d157d22522a359f7d31dd9a9
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -44,7 +53,12 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 
 @Component
+<<<<<<< HEAD
 public class MqttServiceRegistry implements MqttCallback, Runnable {
+=======
+@EnableScheduling
+public class MqttServiceRegistry implements MqttCallback {
+>>>>>>> aced3f499fe35165d157d22522a359f7d31dd9a9
 
   // =================================================================================================
   // members
@@ -83,6 +97,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
   @Value(CoreCommonConstants.$MQTT_BROKER_KEYFILE)
   private String mqttBrokerKeyFile;
 
+<<<<<<< HEAD
   @Value(CommonConstants.$SERVER_SSL_ENABLED_WD)
   private boolean serverSslEnabled;
 
@@ -103,6 +118,9 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
 
   @Value(CommonConstants.$TRUSTSTORE_PASSWORD)
   private String trustStorePassword;
+=======
+  //final int BROKER_CHECK_INTERVAL = 120;
+>>>>>>> aced3f499fe35165d157d22522a359f7d31dd9a9
 
   final String DIRECTION_KEY = "direction";
   final String DIRECTION_DEFAULT = CoreDefaults.DEFAULT_REQUEST_PARAM_DIRECTION_VALUE;
@@ -125,29 +143,33 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
   final String UNREGISTER_TOPIC = "ah/serviceregistry/unregister";
   final String QUERY_TOPIC = "ah/serviceregistry/query";
 
+<<<<<<< HEAD
   Thread t = null;
+=======
+  final String GET_METHOD = "get";
+  final String POST_METHOD = "post";
+  final String DELETE_METHOD = "delete";
+>>>>>>> aced3f499fe35165d157d22522a359f7d31dd9a9
 
   // =================================================================================================
   // methods
   // -------------------------------------------------------------------------------------------------
   @PostConstruct
   public void init() {
-    
+
     if (mqttBrokerEnabled) {
       logger.info("Starting MQTT protocol");
 
-      if(Utilities.isEmpty(mqttBrokerUsername) || Utilities.isEmpty(mqttBrokerPassword)) {
+      if(Utilities.isEmpty(mqttBrokerUsername) || Utilities.isEmpty(mqttBrokerPassword)) { // should we allow anonymous logins?
         logger.info("Missing MQTT broker username or password!");
-        System.exit(-1);
+        //System.exit(-1);
       }
 
-      if(Utilities.isEmpty(mqttBrokerCAFile) || Utilities.isEmpty(mqttBrokerCertFile) || Utilities.isEmpty(mqttBrokerKeyFile)) {
+      if(Utilities.isEmpty(mqttBrokerCAFile) || Utilities.isEmpty(mqttBrokerCertFile) || Utilities.isEmpty(mqttBrokerKeyFile)) { // should we allow non-encrypted traffic?
         logger.info("Missing MQTT broker certificate/key files!");
-        System.exit(-1);
+        //System.exit(-1);
       }
-      
-      t = new Thread(this);
-      t.start();
+
     }
   }
 
@@ -155,56 +177,62 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
   MemoryPersistence persistence = null;
 
   private void connectBroker() {
+    logger.info("Attempting to connect to MQTT broker ...");
 
     try {
-        MqttConnectOptions connOpts = new MqttConnectOptions();
-        connOpts.setCleanSession(true);
+      MqttConnectOptions connOpts = new MqttConnectOptions();
+      
+      if(!Utilities.isEmpty(mqttBrokerUsername) && !Utilities.isEmpty(mqttBrokerPassword)) {
         connOpts.setUserName(mqttBrokerUsername);
-		connOpts.setPassword(mqttBrokerPassword.toCharArray());
+        connOpts.setPassword(mqttBrokerPassword.toCharArray());
+      }
 
-        connOpts.setConnectionTimeout(60);
-		connOpts.setKeepAliveInterval(60);
-        connOpts.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1);
+      connOpts.setCleanSession(true);
+      connOpts.setConnectionTimeout(20);
+			connOpts.setKeepAliveInterval(20);
+      connOpts.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1);
 
+      if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
         SSLSocketFactory socketFactory = null;
         try {
-            //socketFactory = SslUtil.getSslSocketFactory(mqttBrokerCAFile, mqttBrokerCertFile, mqttBrokerKeyFile, "");
+          socketFactory = SslUtil.getSslSocketFactory(mqttBrokerCAFile, mqttBrokerCertFile, mqttBrokerKeyFile, "");
         } catch (Exception e) {
-            logger.info("Could not open certificates: " + e.toString());
+          logger.info("Could not load certificate file(s): " + e.toString());
         }
-	    connOpts.setSocketFactory(socketFactory);
-      
-        client.setCallback(this);
-        client.connect(connOpts);
+        connOpts.setSocketFactory(socketFactory);
+      }
 
-        String topics[] = { ECHO_TOPIC, REGISTER_TOPIC, UNREGISTER_TOPIC, QUERY_TOPIC };
-        client.subscribe(topics);
+      client.setCallback(this);
+      client.connect(connOpts);
+
+      String topics[] = { ECHO_TOPIC, REGISTER_TOPIC, UNREGISTER_TOPIC, QUERY_TOPIC };
+      client.subscribe(topics);
     } catch (MqttException mex) {
-      logger.info("Could not connect to MQTT broker!\n\t" + mex.toString());
+      logger.info("connectBroker: could not connect to MQTT broker!\n\t" + mex.toString());
     }
 
   }
 
-  @Override
-  public void run() {
+  @Scheduled(fixedDelay=1000*60, initialDelay = 1000*5)
+  public void manageBroker() {
 
-    while (true) {
-      try {
-        if (client == null) {
-          persistence = new MemoryPersistence();
-          client = new MqttClient("ssl://" + mqttBrokerAddress + ":" + mqttBrokerPort, mqttSystemName, persistence);
+    try {
+      if (client == null) {
+        persistence = new MemoryPersistence();
+        if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
+          client = new MqttClient(CommonConstants.PROTOCOL_SSL + mqttBrokerAddress + ":" + mqttBrokerPort, mqttSystemName, persistence);
+        } else {
+          client = new MqttClient(CommonConstants.PROTOCOL_TCP + mqttBrokerAddress + ":" + mqttBrokerPort, mqttSystemName, persistence);
         }
-        if (!client.isConnected()) {
-          connectBroker();
-        }
-        Thread.sleep(1000 * 15);
-      } catch (InterruptedException iex) {
-        logger.info("Error starting MQTT timeout thread");
-      } catch (MqttException mex) {
-        logger.info("MQTT error: " + mex.toString());
       }
-    }
 
+      if (!client.isConnected()) {
+        connectBroker();
+      }
+
+    } catch (MqttException mex) {
+      logger.info("MQTT error: " + mex.toString());
+    }
   }
 
   @Override
@@ -217,28 +245,27 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
   public void messageArrived(String topic, MqttMessage message) {
     MqttRequestDTO request = null;
     MqttResponseDTO response = null;
-    ObjectMapper mapper;
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     try {
-        mapper = new ObjectMapper();
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        request = mapper.readValue(message.toString(), MqttRequestDTO.class);
+      request = Utilities.fromJson(message.toString(), MqttRequestDTO.class);
+      
     } catch (Exception ae) {
-        logger.info("Could not convert MQTT message to REST request!");
-        return;
+      logger.info("Could not convert MQTT message to REST request!");
+      return;
     }
 
-    logger.info(request.toString());
-
+    //logger.info(message.toString());
     switch (topic) {
       case ECHO_TOPIC:
-        logger.info(request.getMethod() + " echo(): " + new String(message.getPayload(), StandardCharsets.UTF_8));
-        if (!request.getMethod().toLowerCase().equals("get")) {
+        //logger.info(request.getMethod() + " echo(): " + new String(message.getPayload(), StandardCharsets.UTF_8));
+        if (!request.getMethod().toLowerCase().equals(GET_METHOD)) {
           return;
         }
         try {
           response = new MqttResponseDTO("200", "text/plain", "Got it");
-          MqttMessage resp = new MqttMessage(Utilities.toJson(response).getBytes());
+          final MqttMessage resp = new MqttMessage(Utilities.toJson(response).getBytes());
           resp.setQos(2);
           client.publish(request.getReplyTo(), resp);
           return;
@@ -249,8 +276,8 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
       case REGISTER_TOPIC:
 
         try {
-          logger.info("register(): " + new String(message.getPayload(), StandardCharsets.UTF_8));
-          if (!request.getMethod().toLowerCase().equals("post")) {
+          //logger.info("register(): " + new String(message.getPayload(), StandardCharsets.UTF_8));
+          if (!request.getMethod().toLowerCase().equals(POST_METHOD)) {
             return;
           }
 
@@ -292,7 +319,7 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
           //logger.info("SRREQ:: " + serviceRegistryRequestDTO.toString());
           response = new MqttResponseDTO("200", "application/json", null);
           response.setPayload(serviceRegistryDBService.registerServiceResponse(serviceRegistryRequestDTO));
-          MqttMessage resp = new MqttMessage(mapper.writeValueAsString(response).getBytes());
+          final MqttMessage resp = new MqttMessage(mapper.writeValueAsString(response).getBytes());
           resp.setQos(2);
           client.publish(request.getReplyTo(), resp);
           return;
@@ -303,8 +330,8 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
         }
         break;
       case UNREGISTER_TOPIC:
-        logger.info("unregister(): " + message.toString());
-        if (!request.getMethod().equalsIgnoreCase("delete")) {
+        //logger.info("unregister(): " + message.toString());
+        if (!request.getMethod().equalsIgnoreCase(DELETE_METHOD)) {
           return;
         }
 
@@ -329,7 +356,12 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
           if (providerPort < CommonConstants.SYSTEM_PORT_RANGE_MIN || providerPort > CommonConstants.SYSTEM_PORT_RANGE_MAX) {
             throw new Exception("Port must be between " + CommonConstants.SYSTEM_PORT_RANGE_MIN + " and " + CommonConstants.SYSTEM_PORT_RANGE_MAX + ".");
           }
+
           serviceRegistryDBService.removeServiceRegistry(serviceDefinition, providerName, providerAddress, providerPort);
+          response = new MqttResponseDTO("200", null, null);
+          MqttMessage resp = new MqttMessage(mapper.writeValueAsString(response).getBytes());
+          resp.setQos(2);
+          client.publish(request.getReplyTo(), resp);
 
           return;
         } catch (Exception e) {
@@ -338,22 +370,20 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
 
         break;
       case QUERY_TOPIC:
-        logger.info("query(): " + message.toString());
+        //logger.info("query(): " + message.toString());
         if (!request.getMethod().toLowerCase().equals("post")) {
           return;
         }
 
         try {
-            ServiceQueryFormDTO serviceQueryFormDTO = mapper.convertValue(request.getPayload(), ServiceQueryFormDTO.class);
-
+          ServiceQueryFormDTO serviceQueryFormDTO = mapper.convertValue(request.getPayload(), ServiceQueryFormDTO.class);
           if (Utilities.isEmpty(serviceQueryFormDTO.getServiceDefinitionRequirement())) {
             throw new Exception("Service definition requirement is null or blank");
           }
 
-          logger.info("SRQUERY:: " + serviceQueryFormDTO.toString());
           response = new MqttResponseDTO("200", "application/json", null);
           response.setPayload(serviceRegistryDBService.queryRegistry(serviceQueryFormDTO));
-          MqttMessage resp = new MqttMessage(mapper.writeValueAsString(response).getBytes());
+          final MqttMessage resp = new MqttMessage(mapper.writeValueAsString(response).getBytes());
           resp.setQos(2);
           client.publish(request.getReplyTo(), resp);
           return;
@@ -362,13 +392,12 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
 
         break;
       default:
-        logger.info("Received message on unsupported topic");
+        logger.info("Received message to unsupported topic");
     }
 
     try {
       MqttResponseDTO srResponse = new MqttResponseDTO("400", null, null);
-      String respJson = mapper.convertValue(srResponse, String.class);
-      MqttMessage resp = new MqttMessage(respJson.getBytes());
+      final MqttMessage resp = new MqttMessage(mapper.writeValueAsString(srResponse).getBytes());
       resp.setQos(2);
       client.publish(request.getReplyTo(), resp);
     } catch (Exception me) {
@@ -378,7 +407,6 @@ public class MqttServiceRegistry implements MqttCallback, Runnable {
 
   @Override
   public void deliveryComplete(IMqttDeliveryToken token) {
-
   }
 
 }
