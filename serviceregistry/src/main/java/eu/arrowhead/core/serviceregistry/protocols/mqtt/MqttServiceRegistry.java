@@ -9,11 +9,7 @@ import eu.arrowhead.common.CoreDefaults;
 import eu.arrowhead.common.CoreCommonConstants;
 import eu.arrowhead.common.CoreUtilities;
 import eu.arrowhead.common.Utilities;
-<<<<<<< HEAD
-//import eu.arrowhead.common.SslUtil;
-=======
 import eu.arrowhead.common.SslUtil;
->>>>>>> aced3f499fe35165d157d22522a359f7d31dd9a9
 import eu.arrowhead.common.exception.ArrowheadException;
 import eu.arrowhead.common.core.CoreSystemService;
 import eu.arrowhead.common.dto.internal.ServiceDefinitionRequestDTO;
@@ -36,11 +32,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Component;
-<<<<<<< HEAD
-=======
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
->>>>>>> aced3f499fe35165d157d22522a359f7d31dd9a9
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -53,12 +46,8 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 
 @Component
-<<<<<<< HEAD
-public class MqttServiceRegistry implements MqttCallback, Runnable {
-=======
 @EnableScheduling
 public class MqttServiceRegistry implements MqttCallback {
->>>>>>> aced3f499fe35165d157d22522a359f7d31dd9a9
 
   // =================================================================================================
   // members
@@ -97,30 +86,7 @@ public class MqttServiceRegistry implements MqttCallback {
   @Value(CoreCommonConstants.$MQTT_BROKER_KEYFILE)
   private String mqttBrokerKeyFile;
 
-<<<<<<< HEAD
-  @Value(CommonConstants.$SERVER_SSL_ENABLED_WD)
-  private boolean serverSslEnabled;
-
-  @Value(CommonConstants.$KEYSTORE_TYPE)
-  private String keyStoreType;
-
-  @Value(CommonConstants.$KEYSTORE_PATH)
-  private String keyStorePath;
-
-  @Value(CommonConstants.$KEYSTORE_PASSWORD)
-  private String keyStorePassword;
-
-  @Value(CommonConstants.$KEY_PASSWORD)
-  private String keyPassword;
-
-  @Value(CommonConstants.$TRUSTSTORE_PATH)
-  private String trustStorePath;
-
-  @Value(CommonConstants.$TRUSTSTORE_PASSWORD)
-  private String trustStorePassword;
-=======
   //final int BROKER_CHECK_INTERVAL = 120;
->>>>>>> aced3f499fe35165d157d22522a359f7d31dd9a9
 
   final String DIRECTION_KEY = "direction";
   final String DIRECTION_DEFAULT = CoreDefaults.DEFAULT_REQUEST_PARAM_DIRECTION_VALUE;
@@ -143,13 +109,9 @@ public class MqttServiceRegistry implements MqttCallback {
   final String UNREGISTER_TOPIC = "ah/serviceregistry/unregister";
   final String QUERY_TOPIC = "ah/serviceregistry/query";
 
-<<<<<<< HEAD
-  Thread t = null;
-=======
   final String GET_METHOD = "get";
   final String POST_METHOD = "post";
   final String DELETE_METHOD = "delete";
->>>>>>> aced3f499fe35165d157d22522a359f7d31dd9a9
 
   // =================================================================================================
   // methods
