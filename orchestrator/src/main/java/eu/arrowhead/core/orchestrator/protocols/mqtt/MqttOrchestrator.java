@@ -40,6 +40,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 
 @Component
+@EnableScheduling
 public class MqttOrchestrator implements MqttCallback {
 
   // =================================================================================================
