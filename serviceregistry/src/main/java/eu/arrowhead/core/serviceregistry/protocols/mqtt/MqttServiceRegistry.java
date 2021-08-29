@@ -152,9 +152,9 @@ public class MqttServiceRegistry implements MqttCallback {
       connOpts.setCleanSession(true);
       connOpts.setConnectionTimeout(20);
 			connOpts.setKeepAliveInterval(20);
+      connOpts.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1);
 
       if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
-        connOpts.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1);
         SSLSocketFactory socketFactory = null;
         try {
           socketFactory = SslUtil.getSslSocketFactory(mqttBrokerCAFile, mqttBrokerCertFile, mqttBrokerKeyFile, "");
