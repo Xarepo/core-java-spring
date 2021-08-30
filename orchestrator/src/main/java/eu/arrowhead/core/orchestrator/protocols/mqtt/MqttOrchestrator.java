@@ -92,7 +92,7 @@ public class MqttOrchestrator implements MqttCallback {
   final String GET_METHOD = "get";
   final String POST_METHOD = "post";
   final String DELETE_METHOD = "delete";
-  
+
   // =================================================================================================
   // methods
   // -------------------------------------------------------------------------------------------------
@@ -131,7 +131,7 @@ public class MqttOrchestrator implements MqttCallback {
 
       connOpts.setCleanSession(true);
       connOpts.setConnectionTimeout(60);
-			connOpts.setKeepAliveInterval(60);
+      connOpts.setKeepAliveInterval(60);
       connOpts.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1);
 
       if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
