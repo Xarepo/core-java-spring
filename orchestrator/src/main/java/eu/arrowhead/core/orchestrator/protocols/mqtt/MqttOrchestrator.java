@@ -83,12 +83,15 @@ public class MqttOrchestrator implements MqttCallback {
   private final String URL_PATH_ORCHESTRATOR = "orchestrator";
   private final String URL_PATH_ID = "id";
 
-  private final String ECHO_TOPIC = "ah/orchestration/echo";
-  private final String ORCHESTRATION_TOPIC = "ah/orchestration";
-  private final String ORCHESTRATION_BY_ID_TOPIC = "ah/orchestration/id";
+  private final String ECHO_TOPIC = "ah/" + URL_PATH_ORCHESTRATOR + "/echo";
+  private final String ORCHESTRATION_TOPIC = "ah/" + URL_PATH_ORCHESTRATOR + "/orchestration";
+  private final String ORCHESTRATION_BY_ID_TOPIC = "ah/" + URL_PATH_ORCHESTRATOR + "/orchestration/" + URL_PATH_ID;
 
   private boolean registeredWithServiceRegistry = false;
 
+  final String GET_METHOD = "get";
+  final String POST_METHOD = "post";
+  final String DELETE_METHOD = "delete";
   
   // =================================================================================================
   // methods
