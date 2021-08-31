@@ -270,7 +270,6 @@ public class MqttOrchestrator implements MqttCallback {
 
   void doRegister(){
     logger.info("Registering MQTT services with ServiceRegistry");
-    registeredWithServiceRegistry = true; //XXX fixme
 
     ServiceRegistryRequestDTO srRegRequest = new ServiceRegistryRequestDTO();
     srRegRequest.setServiceUri(ORCHESTRATION_TOPIC);
@@ -286,6 +285,9 @@ public class MqttOrchestrator implements MqttCallback {
     final String respJson = Utilities.toJson(request); 
     System.out.println(respJson);
     final MqttMessage resp = new MqttMessage(Utilities.toJson(request).getBytes());
+
+    registeredWithServiceRegistry = true; //XXX fixme
+    
     try {
       client.publish("ah/serviceregister/register", resp);
     } catch (MqttException mex){
