@@ -20,6 +20,7 @@ import eu.arrowhead.common.dto.shared.OrchestrationFlags.Flag;
 import eu.arrowhead.common.dto.shared.OrchestrationFormRequestDTO;
 import eu.arrowhead.common.dto.shared.PreferredProviderDataDTO;
 import eu.arrowhead.common.dto.shared.SystemRequestDTO;
+import eu.arrowhead.common.dto.shared.ServiceRegistryRequestDTO;
 import eu.arrowhead.common.dto.shared.MqttRequestDTO;
 import eu.arrowhead.common.dto.shared.MqttResponseDTO;
 import eu.arrowhead.core.orchestrator.service.OrchestratorService;
@@ -28,6 +29,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.List;
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -86,6 +88,8 @@ public class MqttOrchestrator implements MqttCallback {
   private final String ECHO_TOPIC = "ah/" + URL_PATH_ORCHESTRATOR + "/echo";
   private final String ORCHESTRATION_TOPIC = "ah/" + URL_PATH_ORCHESTRATOR + "/orchestration";
   private final String ORCHESTRATION_BY_ID_TOPIC = "ah/" + URL_PATH_ORCHESTRATOR + "/orchestration/" + URL_PATH_ID;
+
+  private final String ORCH_RESPONSE_TOPIC = "ah/" + URL_PATH_ORCHESTRATOR + "/replies";
 
   private boolean registeredWithServiceRegistry = false;
 
@@ -147,7 +151,7 @@ public class MqttOrchestrator implements MqttCallback {
       client.setCallback(this);
       client.connect(connOpts);
 
-      String topics[] = { ECHO_TOPIC, ORCHESTRATION_TOPIC, ORCHESTRATION_BY_ID_TOPIC };
+      String topics[] = { ECHO_TOPIC, ORCHESTRATION_TOPIC, ORCHESTRATION_BY_ID_TOPIC, ORCH_RESPONSE_TOPIC };
       client.subscribe(topics);
     } catch (MqttException me) {
       logger.info("Could not connect to MQTT broker!\n\t" + me.toString());
@@ -267,6 +271,26 @@ public class MqttOrchestrator implements MqttCallback {
   void doRegister(){
     logger.info("Registering MQTT services with ServiceRegistry");
     registeredWithServiceRegistry = true; //XXX fixme
+
+    ServiceRegistryRequestDTO srRegRequest = new ServiceRegistryRequestDTO();
+    srRegRequest.setServiceUri(ORCHESTRATION_TOPIC);
+    srRegRequest.setServiceDefinition("");
+    if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
+      srRegRequest.setSecure("CERTIFICATE");
+    } else {
+      srRegRequest.setSecure("NOT_SECURE");
+    }
+    //srRegRequest.setEndOfValidity("");
+    srRegRequest.setInterfaces(List.of("MQTT-INSECURE-JSON"));
+    MqttRequestDTO request = new MqttRequestDTO(POST_METHOD, null, ORCH_RESPONSE_TOPIC, srRegRequest);
+    final String respJson = Utilities.toJson(request); 
+    System.out.println(respJson);
+    final MqttMessage resp = new MqttMessage(Utilities.toJson(request).getBytes());
+    try {
+      client.publish("ah/serviceregister/register", resp);
+    } catch (MqttException mex){
+      logger.debug("Could not register service");
+    }
   }
 
   @Override
