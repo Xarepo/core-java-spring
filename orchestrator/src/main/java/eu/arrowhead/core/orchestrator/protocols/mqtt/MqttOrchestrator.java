@@ -6,6 +6,7 @@ import javax.annotation.PostConstruct;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.stereotype.Component;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -42,7 +43,7 @@ import javax.net.ssl.SSLSocketFactory;
 
 @Component
 @EnableScheduling
-public class MqttOrchestrator implements MqttCallback {
+public class MqttOrchestrator implements MqttCallback, DisposableBean {
 
   // =================================================================================================
   // members
@@ -282,21 +283,37 @@ public class MqttOrchestrator implements MqttCallback {
     srRegRequest.setServiceDefinition("orchestration-service");
     if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
       srRegRequest.setSecure("CERTIFICATE");
+      srRegRequest.setInterfaces(List.of("MQTT-SECURE-JSON"));
     } else {
       srRegRequest.setSecure("NOT_SECURE");
+      srRegRequest.setInterfaces(List.of("MQTT-INSECURE-JSON"));
     }
     //srRegRequest.setEndOfValidity("");
-    srRegRequest.setInterfaces(List.of("MQTT-INSECURE-JSON"));
+    
     MqttRequestDTO request = new MqttRequestDTO(POST_METHOD, null, ORCH_RESPONSE_TOPIC, srRegRequest);
-    final String respJson = Utilities.toJson(request); 
+    String respJson = Utilities.toJson(request); 
     System.out.println(respJson);
-    final MqttMessage resp = new MqttMessage(Utilities.toJson(request).getBytes());
+    MqttMessage resp = new MqttMessage(Utilities.toJson(request).getBytes());
 
     try {
       client.publish("ah/serviceregistry/register", resp);
-    } catch (MqttException mex){
+      Thread.sleep(100);
+
+      srRegRequest.setServiceDefinition("echo");
+      srRegRequest.setServiceUri(ECHO_TOPIC);
+      request = new MqttRequestDTO(POST_METHOD, null, ORCH_RESPONSE_TOPIC, srRegRequest);
+      respJson = Utilities.toJson(request); 
+      System.out.println(respJson);
+      resp = new MqttMessage(Utilities.toJson(request).getBytes());
+      client.publish("ah/serviceregistry/register", resp);
+    } catch (Exception mex){
       logger.debug("Could not register service");
     }
+  }
+
+  @Override
+  public void destroy() throws Exception {
+    logger.info("Shutting down MQTT connection");
   }
 
   @Override
