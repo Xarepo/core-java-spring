@@ -276,7 +276,7 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
     logger.info("Registering MQTT services with ServiceRegistry");
 
     ServiceRegistryRequestDTO srRegRequest = new ServiceRegistryRequestDTO();
-    SystemRequestDTO orchestratorSystem = new SystemRequestDTO(URL_PATH_ORCHESTRATOR, "MQTT-ADDRESS", 0, "");
+    SystemRequestDTO orchestratorSystem = new SystemRequestDTO(URL_PATH_ORCHESTRATOR, "MQTT-ADDRESS", 0, "", null);
 
     srRegRequest.setProviderSystem(orchestratorSystem);
     srRegRequest.setServiceUri(ORCHESTRATION_TOPIC);
