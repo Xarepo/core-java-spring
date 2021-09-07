@@ -1,12 +1,12 @@
 package eu.arrowhead.core.orchestrator.protocols.mqtt;
 
-//import eu.arrowhead.core.orchestrator.protocols.mqtt.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import javax.annotation.PostConstruct;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.stereotype.Component;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -43,7 +43,7 @@ import javax.net.ssl.SSLSocketFactory;
 
 @Component
 @EnableScheduling
-public class MqttOrchestrator implements MqttCallback {
+public class MqttOrchestrator implements MqttCallback, DisposableBean {
 
   // =================================================================================================
   // members
@@ -150,9 +150,13 @@ public class MqttOrchestrator implements MqttCallback {
 
       client.setCallback(this);
       client.connect(connOpts);
+      if (client.isConnected()) {
+        logger.info("Connection established to MQTT Broker successfully");
 
-      String topics[] = { ECHO_TOPIC, ORCHESTRATION_TOPIC, ORCHESTRATION_BY_ID_TOPIC, ORCH_RESPONSE_TOPIC };
-      client.subscribe(topics);
+        String topics[] = { ECHO_TOPIC, ORCHESTRATION_TOPIC, ORCHESTRATION_BY_ID_TOPIC, ORCH_RESPONSE_TOPIC };
+        client.subscribe(topics);
+      }
+
     } catch (MqttException me) {
       logger.info("Could not connect to MQTT broker!\n\t" + me.toString());
     }
@@ -272,27 +276,44 @@ public class MqttOrchestrator implements MqttCallback {
     logger.info("Registering MQTT services with ServiceRegistry");
 
     ServiceRegistryRequestDTO srRegRequest = new ServiceRegistryRequestDTO();
+    SystemRequestDTO orchestratorSystem = new SystemRequestDTO(URL_PATH_ORCHESTRATOR, "MQTT-ADDRESS", 0, "");
+
+    srRegRequest.setProviderSystem(orchestratorSystem);
     srRegRequest.setServiceUri(ORCHESTRATION_TOPIC);
-    srRegRequest.setServiceDefinition("");
+    srRegRequest.setServiceDefinition("orchestration-service");
     if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
       srRegRequest.setSecure("CERTIFICATE");
+      srRegRequest.setInterfaces(List.of("MQTT-SECURE-JSON"));
     } else {
       srRegRequest.setSecure("NOT_SECURE");
+      srRegRequest.setInterfaces(List.of("MQTT-INSECURE-JSON"));
     }
     //srRegRequest.setEndOfValidity("");
-    srRegRequest.setInterfaces(List.of("MQTT-INSECURE-JSON"));
-    MqttRequestDTO request = new MqttRequestDTO(POST_METHOD, null, ORCH_RESPONSE_TOPIC, srRegRequest);
-    final String respJson = Utilities.toJson(request); 
-    System.out.println(respJson);
-    final MqttMessage resp = new MqttMessage(Utilities.toJson(request).getBytes());
-
-    registeredWithServiceRegistry = true; //XXX fixme
     
+    MqttRequestDTO request = new MqttRequestDTO(POST_METHOD, null, ORCH_RESPONSE_TOPIC, srRegRequest);
+    String respJson = Utilities.toJson(request); 
+    System.out.println(respJson);
+    MqttMessage resp = new MqttMessage(Utilities.toJson(request).getBytes());
+
     try {
-      client.publish("ah/serviceregister/register", resp);
-    } catch (MqttException mex){
+      client.publish("ah/serviceregistry/register", resp);
+      Thread.sleep(100);
+
+      srRegRequest.setServiceDefinition("echo");
+      srRegRequest.setServiceUri(ECHO_TOPIC);
+      request = new MqttRequestDTO(POST_METHOD, null, ORCH_RESPONSE_TOPIC, srRegRequest);
+      respJson = Utilities.toJson(request); 
+      System.out.println(respJson);
+      resp = new MqttMessage(Utilities.toJson(request).getBytes());
+      client.publish("ah/serviceregistry/register", resp);
+    } catch (Exception mex){
       logger.debug("Could not register service");
     }
+  }
+
+  @Override
+  public void destroy() throws Exception {
+    logger.info("Shutting down MQTT connection");
   }
 
   @Override
@@ -307,6 +328,7 @@ public class MqttOrchestrator implements MqttCallback {
     MqttResponseDTO response = null;
     ObjectMapper mapper;
 
+    logger.info(message.toString());
     try {
       mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -408,6 +430,11 @@ public class MqttOrchestrator implements MqttCallback {
         } catch (Exception e) {
           logger.info("illegal request: " + e.toString());
         }
+
+        break;
+        case ORCH_RESPONSE_TOPIC:
+          logger.info("Got response from ServiceRegistry");
+          registeredWithServiceRegistry = true;
 
         break;
       default:

@@ -104,10 +104,12 @@ public class MqttServiceRegistry implements MqttCallback {
   final String UNREGISTER_SERVICE_PROVIDER_PORT_KEY = "port";
   final String UNREGISTER_SERVICE_PROVIDER_SYSTEM_NAME_KEY = "system_name";
 
-  final String ECHO_TOPIC = "ah/serviceregistry/echo";
-  final String REGISTER_TOPIC = "ah/serviceregistry/register";
-  final String UNREGISTER_TOPIC = "ah/serviceregistry/unregister";
-  final String QUERY_TOPIC = "ah/serviceregistry/query";
+  private final String URL_PATH_SERVICEREGISTRY = "serviceregistry";
+
+  final String ECHO_TOPIC = "ah/" + URL_PATH_SERVICEREGISTRY + "/echo";
+  final String REGISTER_TOPIC = "ah/" + URL_PATH_SERVICEREGISTRY + "/register";
+  final String UNREGISTER_TOPIC = "ah/" + URL_PATH_SERVICEREGISTRY + "/unregister";
+  final String QUERY_TOPIC = "ah/" + URL_PATH_SERVICEREGISTRY + "/query";
 
   final String GET_METHOD = "get";
   final String POST_METHOD = "post";
@@ -166,9 +168,13 @@ public class MqttServiceRegistry implements MqttCallback {
 
       client.setCallback(this);
       client.connect(connOpts);
+      if (client.isConnected()) {
+        logger.info("Connection established to MQTT Broker sucessfully");
 
-      String topics[] = { ECHO_TOPIC, REGISTER_TOPIC, UNREGISTER_TOPIC, QUERY_TOPIC };
-      client.subscribe(topics);
+        String topics[] = { ECHO_TOPIC, REGISTER_TOPIC, UNREGISTER_TOPIC, QUERY_TOPIC };
+        client.subscribe(topics);
+      }
+
     } catch (MqttException mex) {
       logger.info("connectBroker: could not connect to MQTT broker!\n\t" + mex.toString());
     }
@@ -210,15 +216,14 @@ public class MqttServiceRegistry implements MqttCallback {
     ObjectMapper mapper = new ObjectMapper();
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
+    logger.info(message.toString());
     try {
       request = Utilities.fromJson(message.toString(), MqttRequestDTO.class);
-      
     } catch (Exception ae) {
       logger.info("Could not convert MQTT message to REST request!");
       return;
     }
 
-    //logger.info(message.toString());
     switch (topic) {
       case ECHO_TOPIC:
         //logger.info(request.getMethod() + " echo(): " + new String(message.getPayload(), StandardCharsets.UTF_8));
