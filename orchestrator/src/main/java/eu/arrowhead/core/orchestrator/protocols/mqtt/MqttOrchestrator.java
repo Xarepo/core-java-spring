@@ -394,7 +394,7 @@ public class MqttOrchestrator implements MqttCallback {
         }
 
         try {
-          int id = Integer.parseInt(request.getQueryParameters().get("id"));
+          int id = Integer.parseInt(request.getQueryParameters().get(CommonConstants.COMMON_FIELD_NAME_ID));
 
           if (id < 1) {
             throw new Exception("Id not valid");
