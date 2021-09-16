@@ -9,7 +9,6 @@ import eu.arrowhead.common.CoreDefaults;
 import eu.arrowhead.common.CoreCommonConstants;
 import eu.arrowhead.common.CoreUtilities;
 import eu.arrowhead.common.Utilities;
-//import eu.arrowhead.common.SslUtil;
 import eu.arrowhead.common.SSLProperties;
 import eu.arrowhead.common.exception.ArrowheadException;
 import eu.arrowhead.common.core.CoreSystemService;
@@ -89,13 +88,8 @@ public class MqttServiceRegistry implements MqttCallback {
   @Value(CoreCommonConstants.$MQTT_BROKER_CERTFILE)
   private String mqttBrokerCertFile;
 
-  //@Value(CoreCommonConstants.$MQTT_BROKER_KEYFILE)
-  //private String mqttBrokerKeyFile;
-
   @Autowired
 	private SSLProperties sslProperties;
-
-  //final int BROKER_CHECK_INTERVAL = 120;
 
   final String DIRECTION_KEY = "direction";
   final String DIRECTION_DEFAULT = CoreDefaults.DEFAULT_REQUEST_PARAM_DIRECTION_VALUE;
@@ -113,7 +107,7 @@ public class MqttServiceRegistry implements MqttCallback {
   final String UNREGISTER_SERVICE_PROVIDER_PORT_KEY = "port";
   final String UNREGISTER_SERVICE_PROVIDER_SYSTEM_NAME_KEY = "system_name";
 
-  private final String URL_PATH_SERVICEREGISTRY = "serviceregistry";
+  final String URL_PATH_SERVICEREGISTRY = "serviceregistry";
 
   final String ECHO_TOPIC = "ah/" + URL_PATH_SERVICEREGISTRY + "/echo";
   final String REGISTER_TOPIC = "ah/" + URL_PATH_SERVICEREGISTRY + "/register";
@@ -124,40 +118,24 @@ public class MqttServiceRegistry implements MqttCallback {
   final String POST_METHOD = "post";
   final String DELETE_METHOD = "delete";
 
-  // =================================================================================================
-  // methods
-  // -------------------------------------------------------------------------------------------------
-  @PostConstruct
-  public void init() {
-
-    if (mqttBrokerEnabled) {
-      logger.info("Starting MQTT protocol");
-
-      if(Utilities.isEmpty(mqttBrokerUsername) || Utilities.isEmpty(mqttBrokerPassword)) { // should we allow anonymous logins?
-        logger.error("Missing MQTT broker username or password!");
-        throw new ArrowheadException("Missing MQTT broker username or password!");
-      }
-
-      if(sslProperties.isSslEnabled()) {
-        logger.error("Missing MQTT broker certificate/key files!");
-        throw new ArrowheadException("Missing MQTT broker username or password!");
-      }
-
-    }
-  }
-
   MqttClient client = null;
   MemoryPersistence persistence = null;
 
+  // =================================================================================================
+  // methods
+
   private void connectBroker() {
-    logger.info("Attempting to connect to MQTT broker ...");
+    logger.info("Connecting to MQTT(S) broker ...");
 
     try {
-      MqttConnectOptions connOpts = new MqttConnectOptions();
+      final MqttConnectOptions connOpts = new MqttConnectOptions();
       
       if(!Utilities.isEmpty(mqttBrokerUsername) && !Utilities.isEmpty(mqttBrokerPassword)) {
         connOpts.setUserName(mqttBrokerUsername);
         connOpts.setPassword(mqttBrokerPassword.toCharArray());
+      } else {
+        logger.error("Missing MQTT broker username or password!");
+        throw new ArrowheadException("Missing MQTT broker username or password!");
       }
 
       connOpts.setCleanSession(true);
@@ -171,14 +149,12 @@ public class MqttServiceRegistry implements MqttCallback {
         try {
           final KeyStore keyStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
           keyStore.load(sslProperties.getKeyStore().getInputStream(), sslProperties.getKeyStorePassword().toCharArray());
-          System.out.println("keyStore.size() = " + keyStore.size());
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORE, mqttBrokerCertFile);
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTOREPWD, sslProperties.getKeyStorePassword());
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORETYPE, sslProperties.getKeyStoreType());
 				
           final KeyStore trustStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
           trustStore.load(sslProperties.getTrustStore().getInputStream(), sslProperties.getTrustStorePassword().toCharArray());
-          System.out.println("trustStore.size() = " + trustStore.size());
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORE, mqttBrokerCAFile);
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTOREPWD, sslProperties.getTrustStorePassword());
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORETYPE, sslProperties.getKeyStoreType());
