@@ -9,7 +9,8 @@ import eu.arrowhead.common.CoreDefaults;
 import eu.arrowhead.common.CoreCommonConstants;
 import eu.arrowhead.common.CoreUtilities;
 import eu.arrowhead.common.Utilities;
-import eu.arrowhead.common.SslUtil;
+//import eu.arrowhead.common.SslUtil;
+import eu.arrowhead.common.SSLProperties;
 import eu.arrowhead.common.exception.ArrowheadException;
 import eu.arrowhead.common.core.CoreSystemService;
 import eu.arrowhead.common.dto.internal.ServiceDefinitionRequestDTO;
@@ -25,6 +26,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
 import javax.annotation.PostConstruct;
+import java.util.Properties;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,11 +43,13 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.internal.security.SSLSocketFactoryFactory;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
+
 
 @Component
 @EnableScheduling
@@ -85,6 +91,9 @@ public class MqttServiceRegistry implements MqttCallback {
 
   @Value(CoreCommonConstants.$MQTT_BROKER_KEYFILE)
   private String mqttBrokerKeyFile;
+
+  @Autowired
+	private SSLProperties sslProperties;
 
   //final int BROKER_CHECK_INTERVAL = 120;
 
@@ -156,22 +165,37 @@ public class MqttServiceRegistry implements MqttCallback {
 			connOpts.setKeepAliveInterval(20);
       connOpts.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1);
 
-      if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
-        SSLSocketFactory socketFactory = null;
+      if(sslProperties.isSslEnabled()) {
+        final Properties sslMQTTProperties = new Properties();
+				
         try {
-          socketFactory = SslUtil.getSslSocketFactory(mqttBrokerCAFile, mqttBrokerCertFile, mqttBrokerKeyFile, "");
+          final KeyStore keyStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
+          keyStore.load(sslProperties.getKeyStore().getInputStream(), sslProperties.getKeyStorePassword().toCharArray());
+          System.out.println("keyStore.size() = " + keyStore.size());
+				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORE, "/tmp/REMOVE/core-java-spring/serviceregistry/src/main/resources/certificates/service_registry.p12");
+				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTOREPWD, sslProperties.getKeyStorePassword());
+				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORETYPE, sslProperties.getKeyStoreType());
+				
+          final KeyStore trustStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
+          trustStore.load(sslProperties.getTrustStore().getInputStream(), sslProperties.getTrustStorePassword().toCharArray());
+          System.out.println("trustStore.size() = " + trustStore.size());
+				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORE, "/tmp/REMOVE/core-java-spring/serviceregistry/src/main/resources/certificates/truststore.p12");
+				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTOREPWD, sslProperties.getTrustStorePassword());
+				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORETYPE, sslProperties.getKeyStoreType());
+
+				  connOpts.setSSLProperties(sslMQTTProperties);
         } catch (Exception e) {
-          logger.info("Could not load certificate file(s): " + e.toString());
+          logger.error("MQTT SSL certificate error!");
+          throw new ArrowheadException("Certificate error: " + e);
         }
-        connOpts.setSocketFactory(socketFactory);
-      }
+       }
 
       client.setCallback(this);
       client.connect(connOpts);
       if (client.isConnected()) {
-        logger.info("Connection established to MQTT Broker sucessfully");
+        logger.info("Connection established to MQTT Broker successfully");
 
-        String topics[] = { ECHO_TOPIC, REGISTER_TOPIC, UNREGISTER_TOPIC, QUERY_TOPIC };
+        final String topics[] = { ECHO_TOPIC, REGISTER_TOPIC, UNREGISTER_TOPIC, QUERY_TOPIC };
         client.subscribe(topics);
       }
 
@@ -187,7 +211,7 @@ public class MqttServiceRegistry implements MqttCallback {
     try {
       if (client == null) {
         persistence = new MemoryPersistence();
-        if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
+        if(sslProperties.isSslEnabled()) {
           client = new MqttClient(CommonConstants.PROTOCOL_SSL + mqttBrokerAddress + ":" + mqttBrokerPort, mqttSystemName, persistence);
         } else {
           client = new MqttClient(CommonConstants.PROTOCOL_TCP + mqttBrokerAddress + ":" + mqttBrokerPort, mqttSystemName, persistence);
