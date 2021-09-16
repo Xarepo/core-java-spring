@@ -89,8 +89,8 @@ public class MqttServiceRegistry implements MqttCallback {
   @Value(CoreCommonConstants.$MQTT_BROKER_CERTFILE)
   private String mqttBrokerCertFile;
 
-  @Value(CoreCommonConstants.$MQTT_BROKER_KEYFILE)
-  private String mqttBrokerKeyFile;
+  //@Value(CoreCommonConstants.$MQTT_BROKER_KEYFILE)
+  //private String mqttBrokerKeyFile;
 
   @Autowired
 	private SSLProperties sslProperties;
@@ -134,13 +134,13 @@ public class MqttServiceRegistry implements MqttCallback {
       logger.info("Starting MQTT protocol");
 
       if(Utilities.isEmpty(mqttBrokerUsername) || Utilities.isEmpty(mqttBrokerPassword)) { // should we allow anonymous logins?
-        logger.info("Missing MQTT broker username or password!");
-        //System.exit(-1);
+        logger.error("Missing MQTT broker username or password!");
+        throw new ArrowheadException("Missing MQTT broker username or password!");
       }
 
-      if(Utilities.isEmpty(mqttBrokerCAFile) || Utilities.isEmpty(mqttBrokerCertFile) || Utilities.isEmpty(mqttBrokerKeyFile)) { // should we allow non-encrypted traffic?
-        logger.info("Missing MQTT broker certificate/key files!");
-        //System.exit(-1);
+      if(sslProperties.isSslEnabled()) {
+        logger.error("Missing MQTT broker certificate/key files!");
+        throw new ArrowheadException("Missing MQTT broker username or password!");
       }
 
     }
@@ -172,14 +172,14 @@ public class MqttServiceRegistry implements MqttCallback {
           final KeyStore keyStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
           keyStore.load(sslProperties.getKeyStore().getInputStream(), sslProperties.getKeyStorePassword().toCharArray());
           System.out.println("keyStore.size() = " + keyStore.size());
-				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORE, "/tmp/REMOVE/core-java-spring/serviceregistry/src/main/resources/certificates/service_registry.p12");
+				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORE, mqttBrokerCertFile);
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTOREPWD, sslProperties.getKeyStorePassword());
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORETYPE, sslProperties.getKeyStoreType());
 				
           final KeyStore trustStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
           trustStore.load(sslProperties.getTrustStore().getInputStream(), sslProperties.getTrustStorePassword().toCharArray());
           System.out.println("trustStore.size() = " + trustStore.size());
-				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORE, "/tmp/REMOVE/core-java-spring/serviceregistry/src/main/resources/certificates/truststore.p12");
+				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORE, mqttBrokerCAFile);
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTOREPWD, sslProperties.getTrustStorePassword());
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORETYPE, sslProperties.getKeyStoreType());
 
@@ -207,6 +207,10 @@ public class MqttServiceRegistry implements MqttCallback {
 
   @Scheduled(fixedDelay=1000*60, initialDelay = 1000*5)
   public void manageBroker() {
+
+    if(!mqttBrokerEnabled) {
+      return;
+    }
 
     try {
       if (client == null) {
