@@ -4,6 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 
+import eu.arrowhead.common.CommonConstants;
+
+import eu.arrowhead.common.CoreCommonConstants;
+import eu.arrowhead.common.Utilities;
+import eu.arrowhead.common.SSLProperties;
+import eu.arrowhead.common.exception.ArrowheadException;
+
 import javax.annotation.PostConstruct;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,10 +20,16 @@ import org.springframework.stereotype.Component;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import eu.arrowhead.common.CommonConstants;
-import eu.arrowhead.common.CoreCommonConstants;
-import eu.arrowhead.common.Utilities;
-import eu.arrowhead.common.SslUtil;
+
+
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.List;
+import java.util.Properties;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+
+//import eu.arrowhead.common.SslUtil;
 import eu.arrowhead.common.dto.shared.CloudRequestDTO;
 import eu.arrowhead.common.dto.shared.OrchestrationFlags.Flag;
 import eu.arrowhead.common.dto.shared.OrchestrationFormRequestDTO;
@@ -29,14 +42,11 @@ import eu.arrowhead.core.orchestrator.service.OrchestratorService;
 
 import org.springframework.beans.factory.annotation.Value;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
-import java.util.List;
-
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.internal.security.SSLSocketFactoryFactory;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
@@ -84,6 +94,9 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
   @Value(CoreCommonConstants.$MQTT_BROKER_KEYFILE)
   private String mqttBrokerKeyFile;
 
+  @Autowired
+	private SSLProperties sslProperties;
+
   private final String URL_PATH_ORCHESTRATOR = "orchestrator";
   private final String URL_PATH_ID = "id";
 
@@ -99,40 +112,25 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
   final String POST_METHOD = "post";
   final String DELETE_METHOD = "delete";
 
-  // =================================================================================================
-  // methods
-  // -------------------------------------------------------------------------------------------------
-  @PostConstruct
-  public void init() {
-    
-    if (mqttBrokerEnabled) {
-      logger.info("Starting MQTT protocol");
-
-      if(Utilities.isEmpty(mqttBrokerUsername) || Utilities.isEmpty(mqttBrokerPassword)) {
-        logger.info("Missing MQTT broker username or password!");
-        //System.exit(-1);
-      }
-
-      if(Utilities.isEmpty(mqttBrokerCAFile) || Utilities.isEmpty(mqttBrokerCertFile) || Utilities.isEmpty(mqttBrokerKeyFile)) {
-        logger.info("Missing MQTT broker certificate/key files!");
-        //System.exit(-1);
-      }
-      
-    }
-  }
-
   MqttClient client = null;
   MemoryPersistence persistence = null;
 
+  // =================================================================================================
+  // methods
+  // -------------------------------------------------------------------------------------------------
+  
   private void connectBroker() {
-    MemoryPersistence persistence = new MemoryPersistence();
+    logger.info("Connecting to MQTT(S) broker ...");
 
     try {
-      MqttConnectOptions connOpts = new MqttConnectOptions();
+      final MqttConnectOptions connOpts = new MqttConnectOptions();
       
       if(!Utilities.isEmpty(mqttBrokerUsername) && !Utilities.isEmpty(mqttBrokerPassword)) {
         connOpts.setUserName(mqttBrokerUsername);
         connOpts.setPassword(mqttBrokerPassword.toCharArray());
+      } else {
+        logger.error("Missing MQTT broker username or password!");
+        throw new ArrowheadException("Missing MQTT broker username or password!");
       }
 
       connOpts.setCleanSession(true);
@@ -140,15 +138,29 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
       connOpts.setKeepAliveInterval(60);
       connOpts.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1);
 
-      if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
-        SSLSocketFactory socketFactory = null;
+      if(sslProperties.isSslEnabled()) {
+        final Properties sslMQTTProperties = new Properties();
+				
         try {
-          socketFactory = SslUtil.getSslSocketFactory(mqttBrokerCAFile, mqttBrokerCertFile, mqttBrokerKeyFile, "");
+          final KeyStore keyStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
+          keyStore.load(sslProperties.getKeyStore().getInputStream(), sslProperties.getKeyStorePassword().toCharArray());
+          sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORE, mqttBrokerCertFile);
+          sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTOREPWD, sslProperties.getKeyStorePassword());
+          sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORETYPE, sslProperties.getKeyStoreType());
+      
+          final KeyStore trustStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
+          trustStore.load(sslProperties.getTrustStore().getInputStream(), sslProperties.getTrustStorePassword().toCharArray());
+          sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORE, mqttBrokerCAFile);
+          sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTOREPWD, sslProperties.getTrustStorePassword());
+          sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORETYPE, sslProperties.getKeyStoreType());
+
+          connOpts.setSSLProperties(sslMQTTProperties);
         } catch (Exception e) {
-          logger.info("Could not load certificate file(s): " + e.toString());
-        }
-        connOpts.setSocketFactory(socketFactory);
+          logger.error("MQTT SSL certificate error!");
+          throw new ArrowheadException("Certificate error: " + e);
+       }
       }
+    
 
       client.setCallback(this);
       client.connect(connOpts);
@@ -159,8 +171,8 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
         client.subscribe(topics);
       }
 
-    } catch (MqttException me) {
-      logger.info("Could not connect to MQTT broker!\n\t" + me.toString());
+    } catch (MqttException mex) {
+      logger.info("connectBroker: could not connect to MQTT broker!\n\t" + mex.toString());
     }
 
   }
@@ -248,6 +260,10 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
 
   @Scheduled(fixedDelay=1000*60, initialDelay = 1000*5)
   public void manageBroker() {
+
+    if(!mqttBrokerEnabled) {
+      return;
+    }
 
     try {
       if (client == null) {
