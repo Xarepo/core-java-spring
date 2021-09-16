@@ -262,8 +262,7 @@ public class MqttServiceRegistry implements MqttCallback {
             try {
               Utilities.parseUTCStringToLocalZonedDateTime(serviceRegistryRequestDTO.getEndOfValidity().trim());
             } catch (final DateTimeParseException ex) {
-              throw new Exception("End of validity is specified in the wrong format. Please provide UTC time using "
-                  + Utilities.getDatetimePattern() + " pattern.");
+              throw new Exception("End of validity is specified in the wrong format. Please provide UTC time yyyy-MM-dd HH:mm:ss");
             }
           }
 
@@ -307,10 +306,11 @@ public class MqttServiceRegistry implements MqttCallback {
         }
 
         try {
-          String serviceDefinition = request.getQueryParameters().get("serviceDefinition");
-          String providerName = request.getQueryParameters().get("providerName");
-          String providerAddress = request.getQueryParameters().get("providerAddress");
-          int providerPort = Integer.parseInt(request.getQueryParameters().get("providerPort"));
+          final String serviceDefinition = request.getQueryParameters().get(CommonConstants.OP_SERVICEREGISTRY_UNREGISTER_REQUEST_PARAM_SERVICE_DEFINITION);
+          final String providerName = request.getQueryParameters().get(CommonConstants.OP_SERVICEREGISTRY_UNREGISTER_REQUEST_PARAM_SYSTEM_NAME);
+          final String providerAddress = request.getQueryParameters().get(CommonConstants.OP_SERVICEREGISTRY_UNREGISTER_REQUEST_PARAM_ADDRESS);
+          final int providerPort = Integer.parseInt(request.getQueryParameters().get(CommonConstants.OP_SERVICEREGISTRY_UNREGISTER_REQUEST_PARAM_PORT));
+          final String providerUri = request.getQueryParameters().get(CommonConstants.OP_SERVICEREGISTRY_UNREGISTER_REQUEST_PARAM_SERVICE_URI);
 
           if (Utilities.isEmpty(serviceDefinition)) {
             throw new Exception("Service definition is blank");
@@ -324,11 +324,15 @@ public class MqttServiceRegistry implements MqttCallback {
             throw new Exception("Address of the provider system is blank");
           }
 
+          if (Utilities.isEmpty(providerUri)) {
+            throw new Exception("URI of the provided service is blank");
+          }
+
           if (providerPort < CommonConstants.SYSTEM_PORT_RANGE_MIN || providerPort > CommonConstants.SYSTEM_PORT_RANGE_MAX) {
             throw new Exception("Port must be between " + CommonConstants.SYSTEM_PORT_RANGE_MIN + " and " + CommonConstants.SYSTEM_PORT_RANGE_MAX + ".");
           }
 
-          serviceRegistryDBService.removeServiceRegistry(serviceDefinition, providerName, providerAddress, providerPort);
+          serviceRegistryDBService.removeServiceRegistry(serviceDefinition, providerName, providerAddress, providerPort, providerUri);
           response = new MqttResponseDTO("200", null, null);
           MqttMessage resp = new MqttMessage(mapper.writeValueAsString(response).getBytes());
           resp.setQos(2);
