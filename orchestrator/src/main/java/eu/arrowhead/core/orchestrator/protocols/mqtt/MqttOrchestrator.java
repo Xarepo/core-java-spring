@@ -282,7 +282,7 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
       }
       
       if (client.isConnected() && !registeredWithServiceRegistry) {
-        //doRegister();
+        doRegister();
       }
 
     } catch (MqttException mex) {
