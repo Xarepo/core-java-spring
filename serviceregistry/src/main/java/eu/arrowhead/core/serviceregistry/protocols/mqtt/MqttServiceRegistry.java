@@ -26,8 +26,8 @@ import java.time.format.DateTimeParseException;
 import java.util.Map;
 import javax.annotation.PostConstruct;
 import java.util.Properties;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
+//import java.security.KeyStore;
+//import java.security.KeyStoreException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -147,14 +147,14 @@ public class MqttServiceRegistry implements MqttCallback {
         final Properties sslMQTTProperties = new Properties();
 				
         try {
-          final KeyStore keyStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
-          keyStore.load(sslProperties.getKeyStore().getInputStream(), sslProperties.getKeyStorePassword().toCharArray());
+          //final KeyStore keyStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
+          //keyStore.load(sslProperties.getKeyStore().getInputStream(), sslProperties.getKeyStorePassword().toCharArray());
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORE, mqttBrokerCertFile);
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTOREPWD, sslProperties.getKeyStorePassword());
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORETYPE, sslProperties.getKeyStoreType());
 				
-          final KeyStore trustStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
-          trustStore.load(sslProperties.getTrustStore().getInputStream(), sslProperties.getTrustStorePassword().toCharArray());
+          //final KeyStore trustStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
+          //trustStore.load(sslProperties.getTrustStore().getInputStream(), sslProperties.getTrustStorePassword().toCharArray());
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORE, mqttBrokerCAFile);
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTOREPWD, sslProperties.getTrustStorePassword());
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORETYPE, sslProperties.getKeyStoreType());
@@ -164,7 +164,7 @@ public class MqttServiceRegistry implements MqttCallback {
           logger.error("MQTT SSL certificate error!");
           throw new ArrowheadException("Certificate error: " + e);
         }
-       }
+      }
 
       client.setCallback(this);
       client.connect(connOpts);

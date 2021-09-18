@@ -26,8 +26,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.List;
 import java.util.Properties;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
+//import java.security.KeyStore;
+//import java.security.KeyStoreException;
 
 //import eu.arrowhead.common.SslUtil;
 import eu.arrowhead.common.dto.shared.CloudRequestDTO;
@@ -142,14 +142,14 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
         final Properties sslMQTTProperties = new Properties();
 				
         try {
-          final KeyStore keyStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
-          keyStore.load(sslProperties.getKeyStore().getInputStream(), sslProperties.getKeyStorePassword().toCharArray());
+          //final KeyStore keyStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
+          //keyStore.load(sslProperties.getKeyStore().getInputStream(), sslProperties.getKeyStorePassword().toCharArray());
           sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORE, mqttBrokerCertFile);
           sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTOREPWD, sslProperties.getKeyStorePassword());
           sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORETYPE, sslProperties.getKeyStoreType());
       
-          final KeyStore trustStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
-          trustStore.load(sslProperties.getTrustStore().getInputStream(), sslProperties.getTrustStorePassword().toCharArray());
+          //final KeyStore trustStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
+          //trustStore.load(sslProperties.getTrustStore().getInputStream(), sslProperties.getTrustStorePassword().toCharArray());
           sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORE, mqttBrokerCAFile);
           sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTOREPWD, sslProperties.getTrustStorePassword());
           sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORETYPE, sslProperties.getKeyStoreType());
@@ -269,7 +269,7 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
       if (client == null) {
         persistence = new MemoryPersistence();
         registeredWithServiceRegistry = false;
-        if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
+        if(sslProperties.isSslEnabled()) {
           client = new MqttClient(CommonConstants.PROTOCOL_SSL + mqttBrokerAddress + ":" + mqttBrokerPort, mqttSystemName, persistence);
         } else {
           client = new MqttClient(CommonConstants.PROTOCOL_TCP + mqttBrokerAddress + ":" + mqttBrokerPort, mqttSystemName, persistence);
@@ -282,7 +282,7 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
       }
       
       if (client.isConnected() && !registeredWithServiceRegistry) {
-        doRegister();
+        //doRegister();
       }
 
     } catch (MqttException mex) {
