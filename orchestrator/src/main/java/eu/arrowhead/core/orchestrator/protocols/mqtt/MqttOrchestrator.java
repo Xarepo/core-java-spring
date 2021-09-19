@@ -299,7 +299,8 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
     srRegRequest.setProviderSystem(orchestratorSystem);
     srRegRequest.setServiceUri(ORCHESTRATION_TOPIC);
     srRegRequest.setServiceDefinition("orchestration-service");
-    if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
+    //if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
+    if(sslProperties.isSslEnabled()) {
       srRegRequest.setSecure("CERTIFICATE");
       srRegRequest.setInterfaces(List.of("MQTT-SECURE-JSON"));
     } else {
