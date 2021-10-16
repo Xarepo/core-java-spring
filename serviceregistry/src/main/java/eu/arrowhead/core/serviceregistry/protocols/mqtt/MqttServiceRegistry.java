@@ -7,10 +7,26 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import eu.arrowhead.common.CommonConstants;
 import eu.arrowhead.common.CoreDefaults;
 import eu.arrowhead.common.CoreCommonConstants;
-import eu.arrowhead.common.CoreUtilities;
+//import eu.arrowhead.common.CoreUtilities;
 import eu.arrowhead.common.Utilities;
 import eu.arrowhead.common.SSLProperties;
 import eu.arrowhead.common.exception.ArrowheadException;
+
+import javax.annotation.PostConstruct;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Sort.Direction;
+import org.springframework.stereotype.Component;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+
+import java.nio.charset.StandardCharsets;
+import java.time.format.DateTimeParseException;
+import java.util.Map;
+import java.util.Properties;
+
 import eu.arrowhead.common.core.CoreSystemService;
 import eu.arrowhead.common.dto.internal.ServiceDefinitionRequestDTO;
 import eu.arrowhead.common.dto.shared.ServiceQueryFormDTO;
@@ -20,23 +36,6 @@ import eu.arrowhead.common.dto.shared.SystemRequestDTO;
 import eu.arrowhead.common.dto.shared.MqttRequestDTO;
 import eu.arrowhead.common.dto.shared.MqttResponseDTO;
 import eu.arrowhead.core.serviceregistry.database.service.ServiceRegistryDBService;
-
-import java.nio.charset.StandardCharsets;
-import java.time.format.DateTimeParseException;
-import java.util.Map;
-import javax.annotation.PostConstruct;
-import java.util.Properties;
-//import java.security.KeyStore;
-//import java.security.KeyStoreException;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Sort.Direction;
-import org.springframework.stereotype.Component;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -114,6 +113,8 @@ public class MqttServiceRegistry implements MqttCallback {
   final String UNREGISTER_TOPIC = "ah/" + URL_PATH_SERVICEREGISTRY + "/unregister";
   final String QUERY_TOPIC = "ah/" + URL_PATH_SERVICEREGISTRY + "/query";
 
+  private final int DEFAULT_TIMEOUT= 60;
+
   final String GET_METHOD = "get";
   final String POST_METHOD = "post";
   final String DELETE_METHOD = "delete";
@@ -139,22 +140,18 @@ public class MqttServiceRegistry implements MqttCallback {
       }
 
       connOpts.setCleanSession(true);
-      connOpts.setConnectionTimeout(20);
-			connOpts.setKeepAliveInterval(20);
+      connOpts.setConnectionTimeout(DEFAULT_TIMEOUT);
+			connOpts.setKeepAliveInterval(DEFAULT_TIMEOUT);
       connOpts.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1);
 
       if(sslProperties.isSslEnabled()) {
         final Properties sslMQTTProperties = new Properties();
 				
         try {
-          //final KeyStore keyStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
-          //keyStore.load(sslProperties.getKeyStore().getInputStream(), sslProperties.getKeyStorePassword().toCharArray());
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORE, mqttBrokerCertFile);
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTOREPWD, sslProperties.getKeyStorePassword());
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORETYPE, sslProperties.getKeyStoreType());
-				
-          //final KeyStore trustStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
-          //trustStore.load(sslProperties.getTrustStore().getInputStream(), sslProperties.getTrustStorePassword().toCharArray());
+
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORE, mqttBrokerCAFile);
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTOREPWD, sslProperties.getTrustStorePassword());
 				  sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORETYPE, sslProperties.getKeyStoreType());

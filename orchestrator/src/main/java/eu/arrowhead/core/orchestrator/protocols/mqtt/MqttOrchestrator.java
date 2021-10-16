@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 
 import eu.arrowhead.common.CommonConstants;
-
 import eu.arrowhead.common.CoreCommonConstants;
 import eu.arrowhead.common.Utilities;
 import eu.arrowhead.common.SSLProperties;
@@ -15,21 +14,17 @@ import javax.annotation.PostConstruct;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.stereotype.Component;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
-
-
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.List;
 import java.util.Properties;
-//import java.security.KeyStore;
-//import java.security.KeyStoreException;
 
-//import eu.arrowhead.common.SslUtil;
 import eu.arrowhead.common.dto.shared.CloudRequestDTO;
 import eu.arrowhead.common.dto.shared.OrchestrationFlags.Flag;
 import eu.arrowhead.common.dto.shared.OrchestrationFormRequestDTO;
@@ -39,8 +34,6 @@ import eu.arrowhead.common.dto.shared.ServiceRegistryRequestDTO;
 import eu.arrowhead.common.dto.shared.MqttRequestDTO;
 import eu.arrowhead.common.dto.shared.MqttResponseDTO;
 import eu.arrowhead.core.orchestrator.service.OrchestratorService;
-
-import org.springframework.beans.factory.annotation.Value;
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -95,7 +88,7 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
   private String mqttBrokerKeyFile;
 
   @Autowired
-	private SSLProperties sslProperties;
+  private SSLProperties sslProperties;
 
   private final String URL_PATH_ORCHESTRATOR = "orchestrator";
   private final String URL_PATH_ID = "id";
@@ -103,8 +96,9 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
   private final String ECHO_TOPIC = "ah/" + URL_PATH_ORCHESTRATOR + "/echo";
   private final String ORCHESTRATION_TOPIC = "ah/" + URL_PATH_ORCHESTRATOR + "/orchestration";
   private final String ORCHESTRATION_BY_ID_TOPIC = "ah/" + URL_PATH_ORCHESTRATOR + "/orchestration/" + URL_PATH_ID;
-
   private final String ORCH_RESPONSE_TOPIC = "ah/" + URL_PATH_ORCHESTRATOR + "/replies";
+
+  private final int DEFAULT_TIMEOUT= 60;
 
   private boolean registeredWithServiceRegistry = false;
 
@@ -134,22 +128,18 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
       }
 
       connOpts.setCleanSession(true);
-      connOpts.setConnectionTimeout(60);
-      connOpts.setKeepAliveInterval(60);
+      connOpts.setConnectionTimeout(DEFAULT_TIMEOUT);
+      connOpts.setKeepAliveInterval(DEFAULT_TIMEOUT);
       connOpts.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1);
 
       if(sslProperties.isSslEnabled()) {
         final Properties sslMQTTProperties = new Properties();
 				
         try {
-          //final KeyStore keyStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
-          //keyStore.load(sslProperties.getKeyStore().getInputStream(), sslProperties.getKeyStorePassword().toCharArray());
           sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORE, mqttBrokerCertFile);
           sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTOREPWD, sslProperties.getKeyStorePassword());
           sslMQTTProperties.put(SSLSocketFactoryFactory.KEYSTORETYPE, sslProperties.getKeyStoreType());
       
-          //final KeyStore trustStore = KeyStore.getInstance(sslProperties.getKeyStoreType());
-          //trustStore.load(sslProperties.getTrustStore().getInputStream(), sslProperties.getTrustStorePassword().toCharArray());
           sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORE, mqttBrokerCAFile);
           sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTOREPWD, sslProperties.getTrustStorePassword());
           sslMQTTProperties.put(SSLSocketFactoryFactory.TRUSTSTORETYPE, sslProperties.getKeyStoreType());
@@ -158,10 +148,9 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
         } catch (Exception e) {
           logger.error("MQTT SSL certificate error!");
           throw new ArrowheadException("Certificate error: " + e);
-       }
+        }
       }
     
-
       client.setCallback(this);
       client.connect(connOpts);
       if (client.isConnected()) {
@@ -299,7 +288,7 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
     srRegRequest.setProviderSystem(orchestratorSystem);
     srRegRequest.setServiceUri(ORCHESTRATION_TOPIC);
     srRegRequest.setServiceDefinition("orchestration-service");
-    //if(!Utilities.isEmpty(mqttBrokerCAFile) && !Utilities.isEmpty(mqttBrokerCertFile) && !Utilities.isEmpty(mqttBrokerKeyFile)) {
+    
     if(sslProperties.isSslEnabled()) {
       srRegRequest.setSecure("CERTIFICATE");
       srRegRequest.setInterfaces(List.of("MQTT-SECURE-JSON"));
@@ -307,7 +296,6 @@ public class MqttOrchestrator implements MqttCallback, DisposableBean {
       srRegRequest.setSecure("NOT_SECURE");
       srRegRequest.setInterfaces(List.of("MQTT-INSECURE-JSON"));
     }
-    //srRegRequest.setEndOfValidity("");
     
     MqttRequestDTO request = new MqttRequestDTO(POST_METHOD, null, ORCH_RESPONSE_TOPIC, srRegRequest);
     String respJson = Utilities.toJson(request); 
